@@ -1,0 +1,15 @@
+# Exclude standard version control layouts
+.git
+.gitignore
+.github
+
+# Exclude local environment files and secrets
+.env
+.env.*
+
+# Exclude operating system clutter
+.DS_Store
+Thumbs.db
+
+# Exclude scratch/test artifacts
+tmp/

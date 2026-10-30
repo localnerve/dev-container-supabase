@@ -1,0 +1,125 @@
+# =============================================================================
+# supabase-dev-container — standalone `docker compose` project
+#
+# This replicates the artist-film-hub .devcontainer workflow as a plain
+# compose stack you can `docker compose up -d`. Two services:
+#
+#   dind         : a `docker:dind` sidecar that runs the Docker daemon AND owns
+#                  the stack's network namespace + published ports. It must come
+#                  up (and be healthy) before supabase-dev, which shares its netns.
+#
+#   supabase-dev : the workstation image (Node 24 + Bun, Supabase CLI,
+#                  Playwright browsers, Xvfb/x11vnc). It runs with
+#                  network_mode: "service:dind", so it lives in dind's netns —
+#                  this is where you run your app and `supabase start`.
+#
+# WHY DinD and not DooD (a host-socket bind-mount), and why the NETNS SHARING:
+#   `supabase start` launches its local-stack containers through a daemon, then
+#   the CLI connects to them at 127.0.0.1:5432x. With DooD those published ports
+#   land on the HOST's loopback, so 127.0.0.1 from inside supabase-dev is its own
+#   (empty) loopback and every connection is refused. Here the daemon (dockerd in
+#   dind) treats dind's netns as its "host", so `supabase start`'s port publishing
+#   binds into that same netns — and because supabase-dev shares it, 127.0.0.1:5432x
+#   resolves to the Supabase services. The compose `ports:` on dind then forward
+#   those same netns ports out onto the Mac (mirroring artist-film-hub's
+#   forwardPorts 54321-54324). See docs/security/dind-dood-security.md.
+# =============================================================================
+
+x-dev-build: &dev-build
+  context: .
+  args:
+    # Version pins live in the Dockerfile as ARGs; pass through from .env so a
+    # single file is the source of truth (see .env.example).
+    NODE_MAJOR: ${NODE_MAJOR:-24}
+    BUN_VERSION: ${BUN_VERSION:-1.4.4}
+    # Empty = "latest" Supabase CLI at build time; pin e.g. 2.122.0 to match CI.
+    SUPABASE_VERSION: ${SUPABASE_VERSION:-}
+
+services:
+  dind:
+    # The DinD image lives on the official `docker` repo as a tag suffixed with
+    # `-dind` (so the valid ref is `docker:<ver>-dind`; bare `docker:dind` also
+    # works and tracks the moby "dind" tag). We pin 29.9.2 to match the host
+    # Docker client — override DIND_VERSION in .env for a different version.
+    image: docker:${DIND_VERSION:-29.9.2}-dind
+    container_name: supabase-dev-dind
+    privileged: true              # required: dockerd needs iptables + mounts
+    environment:
+      # Empty DOCKER_TLS_CERTDIR disables TLS so the daemon listens on plain
+      # TCP 2375 — reachable at tcp://127.0.0.1:2375 from supabase-dev over the
+      # shared netns. The socket is never published to the host, so it stays
+      # loopback-only inside the stack (see docs/security/dind-dood-security.md).
+      DOCKER_TLS_CERTDIR: ""
+    healthcheck:
+      # The dind image bundles a docker client; ping the local daemon.
+      test: ["CMD", "sh", "-c", "DOCKER_HOST=tcp://127.0.0.1:2375 docker version --format '{{.Server.Version}}' >/dev/null 2>&1"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      start_period: 5s
+
+    ports:
+      # x11vnc runs in supabase-dev but shares this netns — connect via
+      # `vnc://localhost:5900` for live headful browser debugging (see the
+      # xvfb-start / xvfb-stop shell helpers).
+      - "5900:5900"
+      # Local Supabase stack, forwarded from the shared netns onto the Mac so
+      # VS Code / psql / your app can reach them. These only become live once
+      # `supabase start` runs inside; harmless when it isn't. Exact roles are
+      # Supabase-CLI-version-dependent — for 2.122.x (verified): 54321 Kong API,
+      # 54322 Postgres (binary protocol), 54323 Studio, 54324 PostgREST.
+      - "54321:54321"   # Kong API gateway (API_URL)
+      - "54322:54322"   # Postgres direct (TCP; binary protocol, not HTTP)
+      - "54323:54323"   # Studio dashboard (STUDIO_URL)
+      - "54324:54324"   # PostgREST
+
+    extra_hosts:
+      # Lets the shared-netns containers reach the Mac host.
+      - "host.docker.internal:host-gateway"
+
+  supabase-dev:
+    build:
+      <<: *dev-build
+    image: supabase-dev-container:latest
+    container_name: supabase-dev
+    tty: true
+    stdin_open: true
+
+    # Live in dind's network namespace so the Supabase CLI reaches its own
+    # services at 127.0.0.1:5432x (this is what makes DinD work for `supabase
+    # start`). A service sharing another's netns must not declare its own
+    # ports/networks — they live on dind above.
+    network_mode: "service:dind"
+
+    volumes:
+      # Your projects, mounted at /workspace (cd into a project and work there).
+      - ${PROJECTS_PATH}:/workspace
+      # Read-only git identity so commits/`git check` behave like on the host.
+      - ~/.gitconfig:/home/node/.gitconfig:ro
+      # macOS ssh-agent socket (Docker Desktop convention) for git over SSH.
+      - ${SSH_AUTH_SOCK}:/run/host-services/ssh-auth.sock
+      # Playwright-managed browser binaries (downloaded by each project's own
+      # `npx playwright install`). Linux-only, so this is NOT shared with the
+      # macOS host cache; it persists across container rebuilds.
+      - playwright-cache:/home/node/.cache/ms-playwright
+
+    environment:
+      SSH_AUTH_SOCK: ${SSH_AUTH_SOCK}
+      # Client -> sidecar daemon over the shared netns (also baked into the
+      # image; set here too so `docker compose config` documents it).
+      DOCKER_HOST: tcp://127.0.0.1:2375
+      GIT_CONFIG_PARAMETERS: "'safe.directory=*'"
+      DEVCONTAINER: "true"
+
+    # Required for Chromium's zygote sandbox to spawn under Docker's default
+    # seccomp profile. ./scripts/update-chrome-seccomp.sh regenerates chrome.json
+    # from Docker's default profile; `seccomp=unconfined` is the fallback.
+    security_opt:
+      - seccomp=./chrome.json
+
+    depends_on:
+      dind:
+        condition: service_healthy
+
+volumes:
+  playwright-cache:
