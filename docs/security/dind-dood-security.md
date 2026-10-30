@@ -23,7 +23,7 @@ Where a "published port" actually lands depends entirely on **which network name
 
 - **DinD** → the daemon runs in the `dind` container's netns and treats *that* netns as its "host." Published ports bind into that netns. Because `supabase-dev` is a member of the same netns (`network_mode: service:dind`), `127.0.0.1:5432x` resolves to the Supabase services. The CLI connects cleanly.
 
-This is precisely why artist-film-hub's devcontainer uses the `ghcr.io/devcontainers/features/docker-in-docker` feature and forwards 54321–54324 — its workflow runs `supabase start`, which has no DooD-compatible path. **For this project DinD is not a preference, it's a correctness requirement.**
+This is precisely why a typical project's devcontainer uses the `ghcr.io/devcontainers/features/docker-in-docker` feature and forwards 54321–54324 — its workflow runs `supabase start`, which has no DooD-compatible path. **For this project DinD is not a preference, it's a correctness requirement.**
 
 ## What DinD costs you (accepted trade-offs)
 
@@ -42,6 +42,6 @@ None of these block the stack from working; they're the price of getting loopbac
 
 ## Bottom line
 
-For a generic `docker`/Testcontainers workload, DooD's lower overhead usually wins. But Supabase is the specific case where the CLI *must* reach its own services at `127.0.0.1`, and only a daemon that shares the app container's network namespace satisfies that. This project therefore runs DinD — matching artist-film-hub — and accepts the modest overhead (re-pulls, privileged mode, an extra healthy-gated sidecar) as the cost of `supabase start` actually working from inside the workstation.
+For a generic `docker`/Testcontainers workload, DooD's lower overhead usually wins. But Supabase is the specific case where the CLI *must* reach its own services at `127.0.0.1`, and only a daemon that shares the app container's network namespace satisfies that. This project therefore runs DinD — matching a typical project — and accepts the modest overhead (re-pulls, privileged mode, an extra healthy-gated sidecar) as the cost of `supabase start` actually working from inside the workstation.
 
 If you ever drop Supabase in favor of a stack that reaches its services by name/IP on a user-defined network (rather than loopback), DooD becomes viable again and would be the lighter choice — revisit this file at that point.

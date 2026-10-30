@@ -6,7 +6,7 @@
 #   git-check               — verify git can reach the origin remote
 #   git-check-remote        — local vs upstream tracking state for this repo
 #
-# Replicated from the artist-film-hub project devcontainer, with a
+# Replicated from a typical project's devcontainer, with a
 # project-neutral prefix. Port 5900 (VNC) is forwarded by docker-compose.yml.
 # =============================================================================
 

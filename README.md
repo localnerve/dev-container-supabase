@@ -2,7 +2,7 @@
 
 > A standalone webdev workstation for local Supabase development
 
-This project delivers a Linux web development workstation optimized for Docker Desktop on macOS, packaged as a `docker compose` service rather than a VS Code `.devcontainer`. It replicates the [artist-film-hub](https://github.com/) project devcontainer — Node.js 24 + Bun, the Supabase CLI, Xvfb/x11vnc for headful browser debugging, and Playwright system dependencies — while adopting the standalone-project layout of the [`dev-container`](../dev-container) reference (a `Dockerfile` + `docker-compose.yml` + docs/scripts you build and run directly).
+This project delivers a Linux web development workstation optimized for Docker Desktop on macOS, packaged as a `docker compose` service rather than a VS Code `.devcontainer`. It replicates a typical project's devcontainer for Node.js 24 + Bun, the Supabase CLI, Xvfb/x11vnc for headful browser debugging, and Playwright system dependencies — while adopting the standalone-project layout of the [`dev-container`](../dev-container) reference (a `Dockerfile` + `docker-compose.yml` + docs/scripts you build and run directly).
 
 The workstation is purpose-built for running a **local Supabase stack**: it ships the Supabase CLI and pairs with a `docker:dind` sidecar that runs the Docker daemon in the workstation's own network namespace. That shared netns is what lets `supabase start` bring up its service containers *and* have the CLI reach them at `127.0.0.1:5432x` — something a plain host-socket (DooD) setup cannot do, because DooD publishes those ports to the host's loopback instead of the container's. See [docs/security/dind-dood-security.md](docs/security/dind-dood-security.md).
 

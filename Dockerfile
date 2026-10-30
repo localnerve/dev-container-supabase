@@ -2,7 +2,7 @@
 # dev-container-supabase
 #
 # A standalone webdev workstation for local Supabase development, modeled on
-# the artist-film-hub project devcontainer and delivered as a `docker compose`
+# a project devcontainer and delivered as a `docker compose`
 # service instead of a VS Code .devcontainer. It provides:
 #   - Node.js 24 (via the Dev Containers base image) + Bun
 #   - The Supabase CLI (for `supabase start` / local stack orchestration)
@@ -12,7 +12,7 @@
 #     the Supabase CLI can launch its local-stack service containers. DinD is
 #     used — not DooD — because `supabase start` reaches its services at
 #     127.0.0.1:*, which only works when the daemon shares this container's
-#     network namespace (the same reason artist-film-hub uses Docker-in-Docker).
+#     network namespace (the same reason project devcontainers use Docker-in-Docker).
 #   - Portable git-check / git-check-remote and xvfb-start / xvfb-stop helpers
 #
 # Version pins live here as ARGs; docker-compose.yml passes them through.
@@ -27,7 +27,7 @@ ARG SUPABASE_VERSION
 ARG CURL_OPTS="-fsSL --retry 5 --retry-delay 2 --retry-all-errors"
 
 # =============================================================================
-# Base image — same family the artist-film-hub devcontainer used:
+# Base image — same family a typical project devcontainer uses:
 # Dev Containers TypeScript/Node image, Node ${NODE_MAJOR}, Debian bookworm.
 # The default working user is `node`; its home is /home/node.
 # =============================================================================
@@ -114,7 +114,7 @@ RUN npm install -g playwright \
 # =============================================================================
 # Supabase CLI — installed to a world-readable path for `supabase start`.
 # Empty SUPABASE_VERSION resolves to the latest GitHub release (the same URL
-# the artist-film-hub devcontainer uses); pin it in docker-compose.yml to freeze.
+# a typical project devcontainer uses); pin it in docker-compose.yml to freeze.
 # Done as root so no sudo is required and the binary lands in /usr/local/bin.
 # =============================================================================
 RUN if [ -n "${SUPABASE_VERSION}" ]; then \

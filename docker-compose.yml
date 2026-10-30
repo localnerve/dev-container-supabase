@@ -1,7 +1,7 @@
 # =============================================================================
 # dev-container-supabase — standalone `docker compose` project
 #
-# This replicates the artist-film-hub .devcontainer workflow as a plain
+# This replicates a .devcontainer workflow as a plain
 # compose stack you can `docker compose up -d`. Two services:
 #
 #   dind         : a `docker:dind` sidecar that runs the Docker daemon AND owns
@@ -21,7 +21,7 @@
 #   dind) treats dind's netns as its "host", so `supabase start`'s port publishing
 #   binds into that same netns — and because supabase-dev shares it, 127.0.0.1:5432x
 #   resolves to the Supabase services. The compose `ports:` on dind then forward
-#   those same netns ports out onto the Mac (mirroring artist-film-hub's
+#   those same netns ports out onto the Mac (mirroring a typical project's devcontainer
 #   forwardPorts 54321-54324). See docs/security/dind-dood-security.md.
 # =============================================================================
 
