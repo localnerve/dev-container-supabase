@@ -1,0 +1,167 @@
+name: Update Seccomp Profile
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC (~1am EST / 2am EDT)
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force regeneration even if upstream hasn't changed"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # 7.0.0
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Download latest Docker default seccomp profile
+        id: download
+        run: |
+          URL="https://raw.githubusercontent.com/moby/profiles/refs/heads/main/seccomp/default.json"
+          TMPFILE=$(mktemp)
+          curl -fsSL "$URL" -o "$TMPFILE"
+          
+          python3 -c "import json, sys; json.load(open('$TMPFILE'))" || {
+            echo "::error::Downloaded file is not valid JSON"
+            exit 1
+          }
+          
+          echo "✓ Downloaded and validated upstream profile"
+          echo "tmpfile=$TMPFILE" >> "$GITHUB_OUTPUT"
+
+      - name: Check for upstream changes
+        id: diff
+        env:
+          UPSTREAM_FILE: ${{ steps.download.outputs.tmpfile }}
+          LOCAL_FILE: seccomp/docker-default.json
+        run: |
+          chmod +x scripts/check-seccomp-diff.sh
+          ./scripts/check-seccomp-diff.sh "$UPSTREAM_FILE" "$LOCAL_FILE"
+
+      - name: Prepare review branch
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        env:
+          BRANCH: automation/update-seccomp-profile
+        run: |
+          if git fetch origin "$BRANCH"; then
+            git switch --create "$BRANCH" --track "origin/$BRANCH"
+          else
+            git switch --create "$BRANCH"
+          fi
+
+      - name: Update local copy and regenerate chrome.json
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        run: |
+          UPSTREAM="${{ steps.download.outputs.tmpfile }}"
+          
+          cp "$UPSTREAM" seccomp/docker-default.json
+          
+          chmod +x scripts/update-chrome-seccomp.sh
+          ./scripts/update-chrome-seccomp.sh --input seccomp/docker-default.json --out chrome.json
+
+      - name: Create pull request for changes
+        if: steps.diff.outputs.changed == 'true' || github.event.inputs.force == 'true'
+        env:
+          BRANCH: automation/update-seccomp-profile
+          GH_TOKEN: ${{ github.token }}
+          UPSTREAM_CHANGED: ${{ steps.diff.outputs.changed }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add seccomp/docker-default.json chrome.json
+
+          # Detect which files actually changed. An upstream sync must always be
+          # committed and proposed as a PR, even when the merge produces no
+          # effective change in chrome.json — otherwise the vendored copy of the
+          # upstream profile stays stale and every future check re-diffs from an
+          # incorrect baseline.
+          PROFILE_CHANGED=false
+          CHROME_CHANGED=false
+          if ! git diff --cached --quiet -- seccomp/docker-default.json; then
+            PROFILE_CHANGED=true
+          fi
+          if ! git diff --cached --quiet -- chrome.json; then
+            CHROME_CHANGED=true
+          fi
+
+          if [ "$PROFILE_CHANGED" = "false" ] && [ "$CHROME_CHANGED" = "false" ]; then
+            if [ "$UPSTREAM_CHANGED" != "true" ]; then
+              echo "::warning::No actual file changes detected — skipping commit and pull request."
+              exit 0
+            fi
+
+            echo "::notice::Upstream changed, but the update is already present on the review branch; continuing pull request handling without an empty commit."
+          fi
+
+          # Choose commit / PR wording based on what actually changed.
+          if [ "$PROFILE_CHANGED" = "true" ] && [ "$CHROME_CHANGED" = "true" ]; then
+            COMMIT_SUBJECT='chore(seccomp): update Docker default profile and regenerate chrome.json'
+            PR_TITLE='chore(seccomp): update Docker default profile'
+            PR_BODY='Updates the Docker default seccomp profile from moby/profiles and regenerates chrome.json.'$'\n\n''The merged Chrome profile has effective changes — please review the new/removed syscalls carefully.'$'\n\n''Please review and approve before merging into main.'
+          elif [ "$PROFILE_CHANGED" = "true" ]; then
+            COMMIT_SUBJECT='chore(seccomp): sync Docker default profile (no effective merge changes)'
+            PR_TITLE='chore(seccomp): sync Docker default profile'
+            PR_BODY='Syncs the local copy of the Docker default seccomp profile from moby/profiles.'$'\n\n''The upstream change does not alter the merged chrome.json, but the vendored copy must be updated so future diff checks compare against the correct baseline.'$'\n\n''Please review and approve before merging into main.'
+          elif [ "$CHROME_CHANGED" = "true" ]; then
+            COMMIT_SUBJECT='chore(seccomp): regenerate chrome.json'
+            PR_TITLE='chore(seccomp): regenerate chrome.json'
+            PR_BODY='Regenerates chrome.json from the current local Docker default seccomp profile.'$'\n\n''Please review and approve before merging into main.'
+          else
+            PR_TITLE='chore(seccomp): update Docker default profile'
+            PR_BODY='The upstream Docker default seccomp profile changed and is already present on the automation branch. This pull request brings that update forward for review.'$'\n\n''Please review and approve before merging into main.'
+          fi
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TRIGGER_LINE="Triggered manually via workflow dispatch"
+          else
+            TRIGGER_LINE="Triggered by scheduled weekly check (Monday)"
+          fi
+
+          if [ "$PROFILE_CHANGED" = "true" ] || [ "$CHROME_CHANGED" = "true" ]; then
+            git commit \
+              -m "$COMMIT_SUBJECT" \
+              -m "Upstream: moby/profiles main/seccomp/default.json" \
+              -m "$TRIGGER_LINE"
+          fi
+
+          git push --set-upstream origin "$BRANCH"
+
+          PR_NUMBER=$(gh pr list \
+            --head "$BRANCH" \
+            --base main \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" --title "$PR_TITLE" --body "$PR_BODY"
+            echo "::notice::Updated existing seccomp profile pull request #$PR_NUMBER."
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "$PR_TITLE" \
+              --body "$PR_BODY"
+            echo "::notice::Created pull request for updated seccomp profiles."
+          fi
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ "${{ steps.diff.outputs.changed }}" = "true" ] || [ "${{ github.event.inputs.force }}" = "true" ]; then
+            echo "::notice::Seccomp profile update completed."
+          else
+            echo "::notice::No upstream changes detected. Profile is current."
+          fi
