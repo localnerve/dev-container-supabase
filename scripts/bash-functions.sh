@@ -1,5 +1,5 @@
 # =============================================================================
-# supabase-dev-container shell helpers
+# dev-container-supabase shell helpers
 #
 # Sourced from ~/.bashrc in new terminals (see Dockerfile). Provides:
 #   xvfb-start / xvfb-stop  — on-demand headful browser debugging over VNC

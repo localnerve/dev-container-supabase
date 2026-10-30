@@ -1,4 +1,4 @@
-# supabase-dev-container
+# dev-container-supabase
 
 > A standalone webdev workstation for local Supabase development
 

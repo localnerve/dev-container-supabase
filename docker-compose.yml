@@ -1,5 +1,5 @@
 # =============================================================================
-# supabase-dev-container — standalone `docker compose` project
+# dev-container-supabase — standalone `docker compose` project
 #
 # This replicates the artist-film-hub .devcontainer workflow as a plain
 # compose stack you can `docker compose up -d`. Two services:
@@ -80,7 +80,7 @@ services:
   supabase-dev:
     build:
       <<: *dev-build
-    image: supabase-dev-container:latest
+    image: dev-container-supabase:latest
     container_name: supabase-dev
     tty: true
     stdin_open: true

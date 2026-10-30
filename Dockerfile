@@ -1,5 +1,5 @@
 # =============================================================================
-# supabase-dev-container
+# dev-container-supabase
 #
 # A standalone webdev workstation for local Supabase development, modeled on
 # the artist-film-hub project devcontainer and delivered as a `docker compose`
