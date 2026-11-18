@@ -8,15 +8,25 @@ The workstation is purpose-built for running a **local Supabase stack**: it ship
 
 ![Compose Visualization](docs/architecture.svg)
 
+## Release Notes
+
+### v1.1.0
+
+Added new project docs and working example starter project scaffold.
+
+* Service Bumps
+  - Supabase-cli   2.x      -> 3.2.0 (new default)
+  - DinD           29.9.2   -> 29.10.0
+
 ### Versions
 
 | Package | Version(s) |
 | --- | --- |
 | Node | 24 (via the Dev Containers base image) |
 | Bun | 1.4.4 |
-| Supabase CLI | latest (pin via `SUPABASE_VERSION`) |
+| Supabase CLI | 3.2.0 (default; pin or set empty for "latest" via `SUPABASE_VERSION`) |
 | Docker CLI | bookworm stable (client only; daemon is the `dind` sidecar) |
-| DinD daemon | 29.9.2 (pin via `DIND_VERSION`; matches a typical host Docker client) |
+| DinD daemon | 29.10.0 (pin via `DIND_VERSION`; matches a typical host Docker client) |
 
 > Update Node/Bun/Supabase/DinD pins in [docker-compose.yml](docker-compose.yml) (build args / image tag), or override per-machine from `.env`.
 
@@ -54,18 +64,20 @@ Inside the container, open one of your projects (mounted at `/workspace`) and st
 cd /workspace/<your-project>
 bun install && bunx playwright install --with-deps chromium   # first time only
 supabase start
-supabase migration up --local
+supabase migration up
 supabase status --output env   # prints API URL, publishable key, service-role key
 ```
 
+> `supabase status` (and most Supabase CLI commands) must run **inside a linked project directory** — one with a `.env` created by `supabase init` — *after* `supabase start`. Run it elsewhere and you'll get `Not linked.` plus a "failed to inspect container health" error; that means "no local stack is running here", not a broken installation.
+
 `supabase start` publishes its local-stack ports into the shared netns, and the `dind` service forwards them out onto your Mac. From a terminal on the host they are reachable at:
 
-| Port | Service (verified for Supabase CLI 2.122.x) |
+| Port | Service (verified for Supabase CLI 3.2.x) |
 | --- | --- |
-| 54321 | Kong API gateway (`API_URL`) |
+| 54321 | Kong API gateway (`API_URL`; also `/rest/v1`, `/functions/v1`, `/graphql/v1`) |
 | 54322 | Postgres direct (TCP; binary protocol, not HTTP) |
 | 54323 | Studio dashboard (`STUDIO_URL`) |
-| 54324 | PostgREST |
+| 54324 | MailPit (local SMTP/webmail for dev email) |
 
 > Exact port roles shift between Supabase CLI versions — check `supabase status --output env` for the authoritative mapping.
 
@@ -79,6 +91,11 @@ The custom profile [chrome.json](chrome.json) adds the Chromium zygote/sandbox s
 curl -fsSL https://raw.githubusercontent.com/moby/profiles/refs/heads/main/seccomp/default.json -o ./seccomp/docker-default.json
 ./scripts/update-chrome-seccomp.sh --input seccomp/docker-default.json --out chrome.json
 ```
+
+## Documentation
+
+* [New Project Guide](docs/new-project-guide.md) — take a new external Supabase project from scaffold to running local stack in this workstation, with a minimal Bun/TypeScript starter in [examples/basic-app](examples/basic-app).
+* [Architecture](docs/architecture.md) — the compose stack and shared-netns topology.
 
 ## Security
 

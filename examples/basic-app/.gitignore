@@ -1,0 +1,24 @@
+# Environment (machine- and deployment-specific; keep .env.example)
+.env
+.env.local
+*.local
+
+# Dependencies / build output
+node_modules
+dist
+.output
+
+# Supabase CLI scratch state
+supabase/.temp/
+
+# Test tooling
+playwright-report/
+test-results/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+tmp*

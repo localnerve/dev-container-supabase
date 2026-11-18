@@ -19,11 +19,11 @@
 # =============================================================================
 
 # --- Build-time version pins (single source of truth) -----------------------
-# SUPABASE_VERSION defaults to empty (= latest from GitHub releases); pin it in
-# docker-compose.yml to freeze, e.g. SUPABASE_VERSION=2.122.0.
+# SUPABASE_VERSION is pinned to 3.2.0 by default; set it empty for "latest"
+# from GitHub releases, or any release tag to match CI.
 ARG NODE_MAJOR=24
 ARG BUN_VERSION=1.4.4
-ARG SUPABASE_VERSION
+ARG SUPABASE_VERSION=3.2.0
 ARG CURL_OPTS="-fsSL --retry 5 --retry-delay 2 --retry-all-errors"
 
 # =============================================================================
@@ -34,7 +34,7 @@ ARG CURL_OPTS="-fsSL --retry 5 --retry-delay 2 --retry-all-errors"
 FROM mcr.microsoft.com/devcontainers/typescript-node:5-${NODE_MAJOR}-bookworm
 
 ARG BUN_VERSION
-ARG SUPABASE_VERSION
+ARG SUPABASE_VERSION=3.2.0
 ARG CURL_OPTS
 ARG USERNAME=node
 ARG USER_HOME=/home/${USERNAME}
@@ -113,8 +113,8 @@ RUN npm install -g playwright \
 
 # =============================================================================
 # Supabase CLI — installed to a world-readable path for `supabase start`.
-# Empty SUPABASE_VERSION resolves to the latest GitHub release (the same URL
-# a typical project devcontainer uses); pin it in docker-compose.yml to freeze.
+# Pinned by default (3.2.0); an empty SUPABASE_VERSION resolves to the latest
+# GitHub release instead.
 # Done as root so no sudo is required and the binary lands in /usr/local/bin.
 # =============================================================================
 RUN if [ -n "${SUPABASE_VERSION}" ]; then \

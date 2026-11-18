@@ -1,5 +1,5 @@
 # =============================================================================
-# dev-container-supabase — standalone `docker compose` project
+# devcontainer-supabase — standalone `docker compose` project
 #
 # This replicates a .devcontainer workflow as a plain
 # compose stack you can `docker compose up -d`. Two services:
@@ -32,8 +32,9 @@ x-dev-build: &dev-build
     # single file is the source of truth (see .env.example).
     NODE_MAJOR: ${NODE_MAJOR:-24}
     BUN_VERSION: ${BUN_VERSION:-1.4.4}
-    # Empty = "latest" Supabase CLI at build time; pin e.g. 2.122.0 to match CI.
-    SUPABASE_VERSION: ${SUPABASE_VERSION:-}
+    # Pinned to 3.2.0 by default (docs/port roles verified against this); set
+    # empty in .env for "latest" at build time, or any release to match CI.
+    SUPABASE_VERSION: ${SUPABASE_VERSION:-3.2.0}
 
 services:
   dind:
@@ -50,6 +51,16 @@ services:
       # shared netns. The socket is never published to the host, so it stays
       # loopback-only inside the stack (see docs/security/dind-dood-security.md).
       DOCKER_TLS_CERTDIR: ""
+    entrypoint:
+      # Docker Desktop (VS Code devcontainers) syncs a bogus `credsStore` into
+      # every container's /root/.docker/config.json, pointing at a credential
+      # helper that is broken here ("error getting credentials - err: exit
+      # status 255"), which makes EVERY registry pull from the inner dockerd
+      # fail — including `supabase start`'s image pulls. Clear it before the
+      # real entrypoint starts dockerd (public images need no auth).
+      - /bin/sh
+      - -c
+      - 'echo "{}" > /root/.docker/config.json; exec dockerd-entrypoint.sh "$@"'
     healthcheck:
       # The dind image bundles a docker client; ping the local daemon.
       test: ["CMD", "sh", "-c", "DOCKER_HOST=tcp://127.0.0.1:2375 docker version --format '{{.Server.Version}}' >/dev/null 2>&1"]
@@ -66,12 +77,12 @@ services:
       # Local Supabase stack, forwarded from the shared netns onto the Mac so
       # VS Code / psql / your app can reach them. These only become live once
       # `supabase start` runs inside; harmless when it isn't. Exact roles are
-      # Supabase-CLI-version-dependent — for 2.122.x (verified): 54321 Kong API,
-      # 54322 Postgres (binary protocol), 54323 Studio, 54324 PostgREST.
-      - "54321:54321"   # Kong API gateway (API_URL)
+      # Supabase-CLI-version-dependent — for 3.2.x (verified): 54321 Kong API,
+      # 54322 Postgres (binary protocol), 54323 Studio, 54324 MailPit.
+      - "54321:54321"   # Kong API gateway (API_URL; /rest/v1, /functions/v1)
       - "54322:54322"   # Postgres direct (TCP; binary protocol, not HTTP)
       - "54323:54323"   # Studio dashboard (STUDIO_URL)
-      - "54324:54324"   # PostgREST
+      - "54324:54324"   # MailPit (local SMTP/webmail)
 
     extra_hosts:
       # Lets the shared-netns containers reach the Mac host.
@@ -80,7 +91,7 @@ services:
   supabase-dev:
     build:
       <<: *dev-build
-    image: dev-container-supabase:latest
+    image: devcontainer-supabase:latest
     container_name: supabase-dev
     tty: true
     stdin_open: true
