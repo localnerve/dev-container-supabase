@@ -8,10 +8,15 @@ The workstation is purpose-built for running a **local Supabase stack**: it ship
 
 ![Compose Visualization](docs/architecture.svg)
 
-### Release Notes
+## Release Notes
+
+### v1.1.0
+
+Added new project docs and working example starter project scaffold.
 
 * Service Bumps
-  - DinD           29.9.2  -> 29.10.0
+  - Supabase-cli   2.x      -> 3.2.0 (new default)
+  - DinD           29.9.2   -> 29.10.0
 
 ### Versions
 
