@@ -19,7 +19,7 @@ The workstation is purpose-built for running a **local Supabase stack**: it ship
 | --- | --- |
 | Node | 24 (via the Dev Containers base image) |
 | Bun | 1.4.4 |
-| Supabase CLI | latest (pin via `SUPABASE_VERSION`) |
+| Supabase CLI | 3.2.0 (default; pin or set empty for "latest" via `SUPABASE_VERSION`) |
 | Docker CLI | bookworm stable (client only; daemon is the `dind` sidecar) |
 | DinD daemon | 29.10.0 (pin via `DIND_VERSION`; matches a typical host Docker client) |
 
@@ -63,14 +63,16 @@ supabase migration up --local
 supabase status --output env   # prints API URL, publishable key, service-role key
 ```
 
+> `supabase status` (and most Supabase CLI commands) must run **inside a linked project directory** — one with a `.env` created by `supabase init` — *after* `supabase start`. Run it elsewhere and you'll get `Not linked.` plus a "failed to inspect container health" error; that means "no local stack is running here", not a broken installation.
+
 `supabase start` publishes its local-stack ports into the shared netns, and the `dind` service forwards them out onto your Mac. From a terminal on the host they are reachable at:
 
-| Port | Service (verified for Supabase CLI 2.122.x) |
+| Port | Service (verified for Supabase CLI 3.2.x) |
 | --- | --- |
-| 54321 | Kong API gateway (`API_URL`) |
+| 54321 | Kong API gateway (`API_URL`; also `/rest/v1`, `/functions/v1`, `/graphql/v1`) |
 | 54322 | Postgres direct (TCP; binary protocol, not HTTP) |
 | 54323 | Studio dashboard (`STUDIO_URL`) |
-| 54324 | PostgREST |
+| 54324 | MailPit (local SMTP/webmail for dev email) |
 
 > Exact port roles shift between Supabase CLI versions — check `supabase status --output env` for the authoritative mapping.
 

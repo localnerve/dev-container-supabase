@@ -5,7 +5,7 @@ flowchart TB
     PAPI[/54321 Kong API/]
     PPG[/54322 Postgres direct, binary TCP/]
     PSTUDIO[/54323 Studio/]
-    PREST[/54324 PostgREST/]
+    PMAIL[/54324 MailPit, dev email/]
     PVNC[/5900 VNC x11vnc/]
   end
 
@@ -16,10 +16,10 @@ flowchart TB
 
     subgraph SB[Supabase local stack — containers launched by the dind daemon]
       direction TB
-      SBAPI[/sb-* :54321 API/]
-      SBPG[/sb-* :54322 Postgres/]
-      SBSTUDIO[/sb-* :54323 Studio/]
-      SBREST[/sb-* :54324 PostgREST/]
+      SBAPI[/"supabase_* :54321 Kong API (also /rest/v1)"/]
+      SBPG[/"supabase_* :54322 Postgres"/]
+      SBSTUDIO[/"supabase_* :54323 Studio"/]
+      SBMAIL[/"supabase_* :54324 MailPit"/]
     end
 
     DEV -- "Supabase CLI: docker client -> dockerd @ 127.0.0.1:2375 (shared loopback)" --> DIND
