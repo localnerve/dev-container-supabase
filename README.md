@@ -59,7 +59,7 @@ Inside the container, open one of your projects (mounted at `/workspace`) and st
 cd /workspace/<your-project>
 bun install && bunx playwright install --with-deps chromium   # first time only
 supabase start
-supabase migration up --local
+supabase migration up
 supabase status --output env   # prints API URL, publishable key, service-role key
 ```
 
@@ -86,6 +86,11 @@ The custom profile [chrome.json](chrome.json) adds the Chromium zygote/sandbox s
 curl -fsSL https://raw.githubusercontent.com/moby/profiles/refs/heads/main/seccomp/default.json -o ./seccomp/docker-default.json
 ./scripts/update-chrome-seccomp.sh --input seccomp/docker-default.json --out chrome.json
 ```
+
+## Documentation
+
+* [New Project Guide](docs/new-project-guide.md) — take a new external Supabase project from scaffold to running local stack in this workstation, with a minimal Bun/TypeScript starter in [examples/basic-app](examples/basic-app).
+* [Architecture](docs/architecture.md) — the compose stack and shared-netns topology.
 
 ## Security
 
