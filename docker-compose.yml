@@ -1,5 +1,5 @@
 # =============================================================================
-# dev-container-supabase — standalone `docker compose` project
+# devcontainer-supabase — standalone `docker compose` project
 #
 # This replicates a .devcontainer workflow as a plain
 # compose stack you can `docker compose up -d`. Two services:
@@ -80,7 +80,7 @@ services:
   supabase-dev:
     build:
       <<: *dev-build
-    image: dev-container-supabase:latest
+    image: devcontainer-supabase:latest
     container_name: supabase-dev
     tty: true
     stdin_open: true

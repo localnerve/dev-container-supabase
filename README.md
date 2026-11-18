@@ -8,6 +8,11 @@ The workstation is purpose-built for running a **local Supabase stack**: it ship
 
 ![Compose Visualization](docs/architecture.svg)
 
+### Release Notes
+
+* Service Bumps
+  - DinD           29.9.2  -> 29.10.0
+
 ### Versions
 
 | Package | Version(s) |
@@ -16,7 +21,7 @@ The workstation is purpose-built for running a **local Supabase stack**: it ship
 | Bun | 1.4.4 |
 | Supabase CLI | latest (pin via `SUPABASE_VERSION`) |
 | Docker CLI | bookworm stable (client only; daemon is the `dind` sidecar) |
-| DinD daemon | 29.9.2 (pin via `DIND_VERSION`; matches a typical host Docker client) |
+| DinD daemon | 29.10.0 (pin via `DIND_VERSION`; matches a typical host Docker client) |
 
 > Update Node/Bun/Supabase/DinD pins in [docker-compose.yml](docker-compose.yml) (build args / image tag), or override per-machine from `.env`.
 
